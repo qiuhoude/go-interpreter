@@ -7,8 +7,13 @@ import (
 /*
 脚本代码目前只支持 ASCII
 number类型只支持 Integer
-
 */
+
+// 词法分析器
+type ILexer interface {
+	NextToken() token.Token
+}
+
 type Lexer struct {
 	input        string
 	position     int  // 当前的位置
@@ -104,11 +109,11 @@ func (l *Lexer) NextToken() token.Token {
 		tok.Literal = ""
 		tok.Type = token.EOF
 	default:
-		if isLetter(l.ch) {
+		if isLetter(l.ch) { // 字母
 			tok.Literal = l.readIdentifier()
 			tok.Type = token.LookupIdent(tok.Literal)
 			return tok // readIdentifier()里面已经 调用了 l.readChar() 所以要return
-		} else if isDigit(l.ch) {
+		} else if isDigit(l.ch) { // 数字
 			tok.Literal = l.readNumber()
 			tok.Type = token.INT
 			return tok

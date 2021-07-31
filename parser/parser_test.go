@@ -365,7 +365,7 @@ func TestOperatorPrecedenceParsing(t *testing.T) {
 }
 
 func TestName(t *testing.T) {
-	l := lexer.New(` -a + b * c + d`)
+	l := lexer.New(` -1 + 2`)
 	p := New(l)
 	program := p.ParseProgram()
 	checkParserErrors(t, p)
