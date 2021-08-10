@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/qiuhoude/go-interpreter/token"
+	"strings"
 )
 
 type Node interface {
@@ -160,6 +161,81 @@ func (ie *InfixExpression) String() string {
 	return out.String()
 }
 
+// IfExpression
+// if (<condition>) <consequence> else <alternative>
+type IfExpression struct {
+	Token       token.Token
+	Condition   Expression
+	Consequence *BlockStatement
+	Alternative *BlockStatement
+}
+
+func (i *IfExpression) expressionNode()      {}
+func (i *IfExpression) TokenLiteral() string { return i.Token.Literal }
+func (i *IfExpression) String() string {
+	var out bytes.Buffer
+	out.WriteString("if")
+	out.WriteString(i.Condition.String())
+	out.WriteString(" ")
+	out.WriteString(i.Consequence.String())
+	if i.Alternative != nil {
+		out.WriteString("else ")
+		out.WriteString(i.Alternative.String())
+	}
+	return out.String()
+}
+
+// fn <parameters> <block statement>, fn(a,b){return a + b;}
+type FunctionLiteral struct {
+	Token      token.Token // token.FUNCTION
+	Parameters []*Identifier
+	Body       *BlockStatement
+}
+
+func (fn *FunctionLiteral) expressionNode()      {}
+func (fn *FunctionLiteral) TokenLiteral() string { return fn.Token.Literal }
+func (fn *FunctionLiteral) String() string {
+	var out bytes.Buffer
+
+	var params []string
+	for _, p := range fn.Parameters {
+		params = append(params, p.String())
+	}
+	out.WriteString(fn.TokenLiteral())
+	out.WriteString("(")
+	out.WriteString(strings.Join(params, ", "))
+	out.WriteString(") ")
+	out.WriteString(fn.Body.String())
+
+	return out.String()
+}
+
+// 调用表达式
+// 可以分查两部分identifier和参数部分中间通过 ( 分割, `(` 注册成 infixFn
+// <expression>(<comma separated expressions>) , fn(x, y) { x + y; }(2, 3), add(2, 3), add(2 + 2, 3 * 3 * 3)
+type CallExpression struct {
+	Token     token.Token  // The '(' token
+	Function  Expression   // eg add(1,2), add
+	Arguments []Expression // eg add(1,2), 1,2
+}
+
+func (ce *CallExpression) expressionNode()      {}
+func (ce *CallExpression) TokenLiteral() string { return ce.Token.Literal }
+func (ce *CallExpression) String() string {
+	var out bytes.Buffer
+
+	var params []string
+	for _, p := range ce.Arguments {
+		params = append(params, p.String())
+	}
+	out.WriteString(ce.TokenLiteral())
+	out.WriteString("(")
+	out.WriteString(strings.Join(params, ", "))
+	out.WriteString(") ")
+
+	return out.String()
+}
+
 // ==================== 叶子节点 ==================
 // IdentifierExpression
 type Identifier struct {
@@ -190,27 +266,3 @@ type Boolean struct {
 func (i *Boolean) expressionNode()      {}
 func (i *Boolean) TokenLiteral() string { return i.Token.Literal }
 func (i *Boolean) String() string       { return i.Token.Literal }
-
-// IfExpression
-// if (<condition>) <consequence> else <alternative>
-type IfExpression struct {
-	Token       token.Token
-	Condition   Expression
-	Consequence *BlockStatement
-	Alternative *BlockStatement
-}
-
-func (i *IfExpression) expressionNode()      {}
-func (i *IfExpression) TokenLiteral() string { return i.Token.Literal }
-func (i *IfExpression) String() string {
-	var out bytes.Buffer
-	out.WriteString("if")
-	out.WriteString(i.Condition.String())
-	out.WriteString(" ")
-	out.WriteString(i.Consequence.String())
-	if i.Alternative != nil {
-		out.WriteString("else ")
-		out.WriteString(i.Alternative.String())
-	}
-	return out.String()
-}

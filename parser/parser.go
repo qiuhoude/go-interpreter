@@ -32,6 +32,7 @@ var precedences = map[token.TokenType]int{
 	token.MINUS:    SUM,
 	token.SLASH:    PRODUCT,
 	token.ASTERISK: PRODUCT,
+	token.LPAREN:   CALL,
 }
 
 // 前缀 和 中缀解析函数
@@ -69,6 +70,7 @@ func New(l *lexer.Lexer) *Parser {
 	p.RegisterPrefix(token.LPAREN, p.parseGroupedExpression)
 
 	p.RegisterPrefix(token.IF, p.parseIfExpression)
+	p.RegisterPrefix(token.FUNCTION, p.parseFunctionLiteral)
 
 	p.RegisterInfix(token.EQ, p.parseInfixExpression)
 	p.RegisterInfix(token.NOT_EQ, p.parseInfixExpression)
@@ -80,6 +82,7 @@ func New(l *lexer.Lexer) *Parser {
 	p.RegisterInfix(token.MINUS, p.parseInfixExpression)
 	p.RegisterInfix(token.SLASH, p.parseInfixExpression)
 	p.RegisterInfix(token.ASTERISK, p.parseInfixExpression)
+	p.RegisterInfix(token.LPAREN, p.parseCallExpression) // call
 
 	p.nextToken()
 	p.nextToken()
@@ -153,6 +156,9 @@ func (p *Parser) parseLetStatement() *ast.LetStatement {
 	if !p.expectPeek(token.ASSIGN) {
 		return nil
 	}
+	p.nextToken() // 跳过 `=`
+
+	stmt.Value = p.parseExpression(LOWEST)
 
 	// 先跳过 expressions ,直到我们遇到 ;
 	for !p.curTokenIs(token.SEMICOLON) {
@@ -168,6 +174,7 @@ func (p *Parser) parseReturnStatement() *ast.ReturnStatement {
 	// 解析 return <expression>;
 
 	p.nextToken()
+	stmt.Value = p.parseExpression(LOWEST)
 
 	for !p.curTokenIs(token.SEMICOLON) {
 		p.nextToken()
@@ -314,6 +321,81 @@ func (p *Parser) parseIfExpression() ast.Expression {
 	}
 
 	return exp
+}
+
+func (p *Parser) parseFunctionLiteral() ast.Expression {
+	defer untrace(trace("parseFunctionLiteral"))
+	exp := &ast.FunctionLiteral{Token: p.curToken}
+
+	if !p.expectPeek(token.LPAREN) { // `fn` (
+		return nil
+	}
+	exp.Parameters = p.parseFunctionParameters()
+
+	if !p.expectPeek(token.LBRACE) { // `fn ( params... )` {
+		return nil
+	}
+
+	exp.Body = p.parseBlockStatement()
+	return exp
+}
+
+func (p *Parser) parseFunctionParameters() []*ast.Identifier {
+	defer untrace(trace("parseFunctionParameters"))
+	// fn (a,b,c...)
+	identifiers := []*ast.Identifier{}
+
+	if p.peekTokenIs(token.RPAREN) {
+		p.nextToken()
+		return identifiers
+	}
+	p.nextToken()
+	ident := &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
+	identifiers = append(identifiers, ident)
+
+	for p.peekTokenIs(token.COMMA) { // 多个参数 (a,b,c)
+		p.nextToken() // cur指向 `,`
+		p.nextToken() // cur指向 `参数`
+
+		ident := &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
+		identifiers = append(identifiers, ident)
+	}
+
+	if !p.expectPeek(token.RPAREN) { // 不是 ) 结束
+		return nil
+	}
+
+	return identifiers
+}
+
+func (p *Parser) parseCallExpression(function ast.Expression) ast.Expression {
+	defer untrace(trace("parseCallExpression"))
+	exp := &ast.CallExpression{Token: p.curToken, Function: function}
+	exp.Arguments = p.parseCallParameters()
+	return exp
+}
+
+func (p *Parser) parseCallParameters() []ast.Expression {
+	defer untrace(trace("parseCallParameters"))
+	args := []ast.Expression{}
+
+	if p.peekTokenIs(token.RPAREN) {
+		p.nextToken()
+		return args
+	}
+	p.nextToken()
+	args = append(args, p.parseExpression(LOWEST)) // 添加表达式
+
+	for p.peekTokenIs(token.COMMA) { // 多个参数 (a,b,c)
+		p.nextToken() // cur指向 `,`
+		p.nextToken() // cur指向 `参数`
+		args = append(args, p.parseExpression(LOWEST))
+	}
+
+	if !p.expectPeek(token.RPAREN) { // 不是 ) 结束
+		return nil
+	}
+	return args
 }
 
 func (p *Parser) curTokenIs(t token.TokenType) bool {
