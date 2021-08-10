@@ -18,14 +18,26 @@ CFG是一组规则,用于描述一个程序语言的规则(语法)
 2. `bottom upparsing` strategies
 本书的解释器采用 `top-down`, 叫做 `pratt parser` 
 
-主要目的先构建AST(abstract syntax tree)
-
+主要目的先构建AST(abstract syntax tree) 
+AST上的每个节点都是`Node`接口的实现, 都有`TokenLiteral()`  
 ```
         Node
 Statement Expression
 ```
 
-AST上的每个节点都是`Node`接口的实现, 都有`TokenLiteral()`
+
+`Top Down Operator Precedence`  在1973年发布,作者:`Vaughan Pratt`   
+`Game Programming Patterns` 被书作者强烈推荐
+
+##### 术语
+1. prefix operator (前缀操作), `--foobar`
+2. postfix operator(后缀操作), `foobar++`
+3. infix operators(中缀操作), `5 + 5 * 10`, 有优先级,需要定义 precedences
+
+主要思路, 根据token type关联一些解析函数, 函数返回都是 AST node expression,
+每次遇到对应的token type都会找出对应的解析函数, 
+每个token type最多可以有两个解析函数相关联,具体取决于token的位置是prefix 或 infix
+
 
 
 #### 测试工具的使用

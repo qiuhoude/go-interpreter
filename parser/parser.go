@@ -34,6 +34,7 @@ var precedences = map[token.TokenType]int{
 	token.ASTERISK: PRODUCT,
 }
 
+// 前缀 和 中缀解析函数
 type (
 	prefixParseFn func() ast.Expression
 	infixParseFn  func(ast.Expression) ast.Expression // argument is left side
@@ -63,6 +64,11 @@ func New(l *lexer.Lexer) *Parser {
 	p.RegisterPrefix(token.BANG, p.parsePrefixExpression)
 	p.RegisterPrefix(token.MINUS, p.parsePrefixExpression)
 	p.RegisterPrefix(token.PLUS, p.parsePrefixExpression)
+	p.RegisterPrefix(token.TRUE, p.parseBoolean)
+	p.RegisterPrefix(token.FALSE, p.parseBoolean)
+	p.RegisterPrefix(token.LPAREN, p.parseGroupedExpression)
+
+	p.RegisterPrefix(token.IF, p.parseIfExpression)
 
 	p.RegisterInfix(token.EQ, p.parseInfixExpression)
 	p.RegisterInfix(token.NOT_EQ, p.parseInfixExpression)
@@ -111,6 +117,7 @@ func (p *Parser) ParseProgram() *ast.Program {
 	return program
 }
 
+// 解析语句
 func (p *Parser) parseStatement() ast.Statement {
 	switch p.curToken.Type {
 	case token.LET:
@@ -131,7 +138,6 @@ func (p *Parser) parseExpressionStatement() *ast.ExpressionStatement {
 	if p.peekTokenIs(token.SEMICOLON) {
 		p.nextToken()
 	}
-
 	return stmt
 }
 
@@ -157,6 +163,7 @@ func (p *Parser) parseLetStatement() *ast.LetStatement {
 }
 
 func (p *Parser) parseReturnStatement() *ast.ReturnStatement {
+	defer untrace(trace("parseReturnStatement"))
 	stmt := &ast.ReturnStatement{Token: p.curToken}
 	// 解析 return <expression>;
 
@@ -169,6 +176,21 @@ func (p *Parser) parseReturnStatement() *ast.ReturnStatement {
 	return stmt
 }
 
+func (p *Parser) parseBlockStatement() *ast.BlockStatement {
+	blockStmt := &ast.BlockStatement{Token: p.curToken}
+
+	p.nextToken() // skip {
+
+	for !p.curTokenIs(token.RBRACE) && !p.curTokenIs(token.EOF) {
+		stmt := p.parseStatement()
+		if stmt != nil {
+			blockStmt.Statements = append(blockStmt.Statements, stmt)
+		}
+		p.nextToken()
+	}
+	return blockStmt
+}
+
 func (p *Parser) noPrefixParseFnError(t token.TokenType) {
 	msg := fmt.Sprintf("no prefix parse function for %s found", t)
 	p.errors = append(p.errors, msg)
@@ -176,17 +198,24 @@ func (p *Parser) noPrefixParseFnError(t token.TokenType) {
 
 func (p *Parser) parseExpression(precedence int) ast.Expression {
 	defer untrace(trace("parseExpression"))
+	// 流程就是使用递归方式构建多叉树 AST
+	// 前缀
 	prefix, ok := p.prefixParseFns[p.curToken.Type]
 	if !ok {
 		p.noPrefixParseFnError(p.curToken.Type)
 		return nil
 	}
+	// 有前缀,可能是中缀的左值
 	leftExp := prefix()
-	// key code
+
+	// 中缀 key code
 	for !p.peekTokenIs(token.SEMICOLON) && precedence < p.peekPrecedence() {
+		// 下一个token 不是`;` , 并且下一个token优先级大于传入参数优先级
 		infix, ok := p.infixParseFns[p.peekToken.Type]
+		// 不是中缀,跳出循环
 		if !ok {
-			return leftExp
+			//return leftExp
+			break
 		}
 		p.nextToken()
 		leftExp = infix(leftExp)
@@ -231,10 +260,57 @@ func (p *Parser) parseInfixExpression(left ast.Expression) ast.Expression {
 
 	precedences := p.curPrecedence()
 	p.nextToken()
-	if exp.Operator == "+" {
-		exp.Right = p.parseExpression(precedences - 1)
-	} else {
-		exp.Right = p.parseExpression(precedences)
+	exp.Right = p.parseExpression(precedences)
+
+	return exp
+}
+
+func (p *Parser) parseBoolean() ast.Expression {
+	defer untrace(trace("parseBoolean"))
+	return &ast.Boolean{Token: p.curToken, Value: p.curTokenIs(token.TRUE)}
+}
+
+func (p *Parser) parseGroupedExpression() ast.Expression {
+	defer untrace(trace("parseGroupedExpression"))
+	p.nextToken()
+
+	exp := p.parseExpression(LOWEST)
+
+	if !p.expectPeek(token.RPAREN) {
+		return nil
+	}
+	return exp
+}
+
+func (p *Parser) parseIfExpression() ast.Expression {
+	defer untrace(trace("parseIfExpression"))
+	exp := &ast.IfExpression{Token: p.curToken}
+
+	if !p.expectPeek(token.LPAREN) { // `if` (
+		return nil
+	}
+
+	p.nextToken()                             // 跳过 (
+	exp.Condition = p.parseExpression(LOWEST) // `if (` condition
+
+	if !p.expectPeek(token.RPAREN) { // `if ( condition` )
+		return nil
+	}
+
+	if !p.expectPeek(token.LBRACE) { // `if ( condition )` {
+		return nil
+	}
+
+	exp.Consequence = p.parseBlockStatement() // `if ( condition )` { Consequence }
+
+	if p.peekTokenIs(token.ELSE) { // else 部分
+		p.nextToken()
+
+		if !p.expectPeek(token.LBRACE) {
+			return nil
+		}
+
+		exp.Alternative = p.parseBlockStatement()
 	}
 
 	return exp
@@ -265,14 +341,15 @@ func (p *Parser) peekError(t token.TokenType) {
 }
 
 func (p *Parser) peekPrecedence() int {
-	if p, ok := precedences[p.peekToken.Type]; ok {
-		return p
-	}
-	return LOWEST
+	return p.precedence(p.peekToken.Type)
 }
 
 func (p *Parser) curPrecedence() int {
-	if p, ok := precedences[p.curToken.Type]; ok {
+	return p.precedence(p.curToken.Type)
+}
+
+func (p *Parser) precedence(tk token.TokenType) int {
+	if p, ok := precedences[tk]; ok {
 		return p
 	}
 	return LOWEST

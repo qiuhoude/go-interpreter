@@ -43,7 +43,7 @@ func (p *Program) String() string {
 	return out.String()
 }
 
-// statement
+// ================== statement ======================
 // let <identifier> = <expression>;
 type LetStatement struct {
 	Token token.Token //the token.LET
@@ -103,26 +103,23 @@ func (es *ExpressionStatement) String() string {
 	return ""
 }
 
-// IdentifierExpression
-type Identifier struct {
-	Token token.Token //the token.IDENT
-	Value string
+// 块语句
+type BlockStatement struct {
+	Token      token.Token // the { token
+	Statements []Statement
 }
 
-func (i *Identifier) expressionNode()      {}
-func (i *Identifier) TokenLiteral() string { return i.Token.Literal }
-func (i *Identifier) String() string       { return i.Value }
-
-// IntegerExpression
-type IntegerLiteral struct {
-	Token token.Token //the token.INT
-	Value int64
+func (bs *BlockStatement) statementNode()       {}
+func (bs *BlockStatement) TokenLiteral() string { return bs.Token.Literal }
+func (bs *BlockStatement) String() string {
+	var out bytes.Buffer
+	for _, s := range bs.Statements {
+		out.WriteString(s.String())
+	}
+	return out.String()
 }
 
-func (i *IntegerLiteral) expressionNode()      {}
-func (i *IntegerLiteral) TokenLiteral() string { return i.Token.Literal }
-func (i *IntegerLiteral) String() string       { return i.Token.Literal }
-
+// ================== expression ======================
 // PrefixExpression
 // <prefix operator><expression>; eg -5;
 type PrefixExpression struct {
@@ -160,5 +157,60 @@ func (ie *InfixExpression) String() string {
 	out.WriteString(" " + ie.Operator + " ")
 	out.WriteString(ie.Right.String())
 	out.WriteString(")")
+	return out.String()
+}
+
+// ==================== 叶子节点 ==================
+// IdentifierExpression
+type Identifier struct {
+	Token token.Token //the token.IDENT
+	Value string
+}
+
+func (i *Identifier) expressionNode()      {}
+func (i *Identifier) TokenLiteral() string { return i.Token.Literal }
+func (i *Identifier) String() string       { return i.Value }
+
+// IntegerExpression
+type IntegerLiteral struct {
+	Token token.Token //the token.INT
+	Value int64
+}
+
+func (i *IntegerLiteral) expressionNode()      {}
+func (i *IntegerLiteral) TokenLiteral() string { return i.Token.Literal }
+func (i *IntegerLiteral) String() string       { return i.Token.Literal }
+
+// BooleanExpression
+type Boolean struct {
+	Token token.Token //the token.TRUE, token.FALSE
+	Value bool
+}
+
+func (i *Boolean) expressionNode()      {}
+func (i *Boolean) TokenLiteral() string { return i.Token.Literal }
+func (i *Boolean) String() string       { return i.Token.Literal }
+
+// IfExpression
+// if (<condition>) <consequence> else <alternative>
+type IfExpression struct {
+	Token       token.Token
+	Condition   Expression
+	Consequence *BlockStatement
+	Alternative *BlockStatement
+}
+
+func (i *IfExpression) expressionNode()      {}
+func (i *IfExpression) TokenLiteral() string { return i.Token.Literal }
+func (i *IfExpression) String() string {
+	var out bytes.Buffer
+	out.WriteString("if")
+	out.WriteString(i.Condition.String())
+	out.WriteString(" ")
+	out.WriteString(i.Consequence.String())
+	if i.Alternative != nil {
+		out.WriteString("else ")
+		out.WriteString(i.Alternative.String())
+	}
 	return out.String()
 }
