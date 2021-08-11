@@ -161,7 +161,7 @@ func (p *Parser) parseLetStatement() *ast.LetStatement {
 	stmt.Value = p.parseExpression(LOWEST)
 
 	// 先跳过 expressions ,直到我们遇到 ;
-	for !p.curTokenIs(token.SEMICOLON) {
+	for !p.curTokenIs(token.EOF) && !p.curTokenIs(token.SEMICOLON) {
 		p.nextToken()
 	}
 
@@ -176,7 +176,7 @@ func (p *Parser) parseReturnStatement() *ast.ReturnStatement {
 	p.nextToken()
 	stmt.Value = p.parseExpression(LOWEST)
 
-	for !p.curTokenIs(token.SEMICOLON) {
+	for !p.curTokenIs(token.EOF) && !p.curTokenIs(token.SEMICOLON) {
 		p.nextToken()
 	}
 
@@ -188,7 +188,7 @@ func (p *Parser) parseBlockStatement() *ast.BlockStatement {
 
 	p.nextToken() // skip {
 
-	for !p.curTokenIs(token.RBRACE) && !p.curTokenIs(token.EOF) {
+	for !p.curTokenIs(token.EOF) && !p.curTokenIs(token.RBRACE) {
 		stmt := p.parseStatement()
 		if stmt != nil {
 			blockStmt.Statements = append(blockStmt.Statements, stmt)

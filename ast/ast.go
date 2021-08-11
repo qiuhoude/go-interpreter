@@ -179,7 +179,7 @@ func (i *IfExpression) String() string {
 	out.WriteString(" ")
 	out.WriteString(i.Consequence.String())
 	if i.Alternative != nil {
-		out.WriteString("else ")
+		out.WriteString(" else ")
 		out.WriteString(i.Alternative.String())
 	}
 	return out.String()
@@ -228,7 +228,7 @@ func (ce *CallExpression) String() string {
 	for _, p := range ce.Arguments {
 		params = append(params, p.String())
 	}
-	out.WriteString(ce.TokenLiteral())
+	out.WriteString(ce.Function.String())
 	out.WriteString("(")
 	out.WriteString(strings.Join(params, ", "))
 	out.WriteString(") ")
