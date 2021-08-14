@@ -39,6 +39,15 @@ Statement Expression
 每个token type最多可以有两个解析函数相关联,具体取决于token的位置是prefix 或 infix
 
 
+#### Evaluation
+eval 会有不同的 strategies
+遍历AST树叫做 `tree-walking interpreters` (最慢的方式)  
+会对AST进行重写(删除无用的结构)来达到一些小优化  
+或者转换成其他intermediate representation(IR) 中间表现层  
+  
+解释器递归AST多次进入某个分支会将该分支编译成机器码
+
+NULL 的引入称之为亿万美元错误 `billion-dollar mistake` (billion十亿,有连接符号dollar不用加s)   
 
 #### 测试工具的使用
 

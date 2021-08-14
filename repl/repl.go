@@ -3,6 +3,7 @@ package repl
 import (
 	"bufio"
 	"fmt"
+	"github.com/qiuhoude/go-interpreter/evaluator"
 	"github.com/qiuhoude/go-interpreter/lexer"
 	"github.com/qiuhoude/go-interpreter/parser"
 	"io"
@@ -33,11 +34,16 @@ func Start(in io.Reader, out io.Writer) {
 			printParserErrors(out, p.Errors())
 			continue
 		}
-		_, _ = fmt.Fprintf(out, "%s\n", program.String())
+		//_, _ = fmt.Fprintf(out, "%s\n", program.String())
 
 		//for tok := l.NextToken(); tok.Type != token.EOF; tok = l.NextToken() {
 		//	_, _ = fmt.Fprintf(out, "%+v\n", tok)
 		//}
+
+		evaluated := evaluator.Eval(program)
+		if evaluated != nil {
+			_, _ = fmt.Fprintf(out, "%s\n", evaluated.Inspect())
+		}
 	}
 }
 func printParserErrors(out io.Writer, errors []string) {
