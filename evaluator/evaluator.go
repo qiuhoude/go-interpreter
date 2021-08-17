@@ -20,8 +20,10 @@ func Eval(node ast.Node) object.Object {
 	case *ast.ExpressionStatement:
 		return Eval(node.Expression)
 	case *ast.BlockStatement: // {}
-		return evalStatements(node.Statements)
-
+		return evalBlockStatements(node.Statements)
+	case *ast.ReturnStatement:
+		val := Eval(node.Value)
+		return &object.ReturnValue{Value: val}
 		// expressions
 	case *ast.IntegerLiteral:
 		return &object.Integer{Value: node.Value}
@@ -155,13 +157,38 @@ func nativeBoolToBooleanObject(input bool) object.Object {
 	return FALSE
 }
 
+/*
+需要考虑, 应该返回 10, if 嵌套返回值的问题
+if (10 > 1) {
+if (10 > 1) {
+return 10;
+}
+return 1;
+}
+*/
 func evalStatements(stmts []ast.Statement) object.Object {
 	var result object.Object
 
-	for _, s := range stmts { // 解析最后一条语句才是返回值
-		result = Eval(s)
-	}
+	for _, s := range stmts {
+		result = Eval(s) // 解析最后一条语句才是返回值
 
+		if returnValue, ok := result.(*object.ReturnValue); ok {
+			// program 外层遇到 return 返回
+			return returnValue.Value
+		}
+	}
+	return result
+}
+
+func evalBlockStatements(stmts []ast.Statement) object.Object {
+	var result object.Object
+
+	for _, s := range stmts {
+		result = Eval(s)
+		if result != nil && result.Type() == object.RETURN_VALUE_OBJ {
+			return result
+		}
+	}
 	return result
 }
 

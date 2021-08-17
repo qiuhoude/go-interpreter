@@ -162,6 +162,30 @@ func TestEvaluator(t *testing.T) {
 			}
 		}
 	})
+
+	Convey("TestReturnStatements", t, func() {
+		cases := []struct {
+			input    string
+			expected int64
+		}{
+			{"return 10;", 10},
+			{"return 10; 9;", 10},
+			{"return 2 * 5; 9;", 10},
+			{"9; return 2 * 5; 9;", 10},
+			{`
+if (10 > 1) {
+	if (10 > 1) {
+		return 10;
+	}
+	return 1;
+}
+`, 10},
+		}
+		for _, tt := range cases {
+			actual := testEval(tt.input)
+			So(actual, shouldIsIntegerObject, tt.expected)
+		}
+	})
 }
 
 func shouldIsNullObject(actual interface{}, _ ...interface{}) string {
@@ -177,7 +201,7 @@ func shouldIsBooleanObject(actual interface{}, expectedList ...interface{}) stri
 
 	result, ok := actual.(*object.Boolean)
 	if !ok {
-		return fmt.Sprintf("object is not Integer. got=%T (%+v)",
+		return fmt.Sprintf("object is not Boolean. got=%T (%+v)",
 			actual, actual)
 	}
 	if result.Value != expected {
@@ -192,7 +216,7 @@ func shouldIsIntegerObject(actual interface{}, expectedList ...interface{}) stri
 
 	result, ok := actual.(*object.Integer)
 	if !ok {
-		return fmt.Sprintf("object is not Boolean. got=%T (%+v)",
+		return fmt.Sprintf("object is not Integer. got=%T (%+v)",
 			actual, actual)
 	}
 	if result.Value != expected {

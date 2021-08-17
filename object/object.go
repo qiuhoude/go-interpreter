@@ -2,12 +2,13 @@ package object
 
 import "fmt"
 
-type ObjectType string
+type ObjectType int
 
 const (
-	INTEGER_OBJ ObjectType = "INTEGER"
-	BOOLEAN_OBJ ObjectType = "BOOLEAN"
-	NULL_OBJ    ObjectType = "NULL_OBJ"
+	INTEGER_OBJ      ObjectType = iota //= "INTEGER"
+	BOOLEAN_OBJ                        //= "BOOLEAN"
+	NULL_OBJ                           //= "NULL_OBJ"
+	RETURN_VALUE_OBJ                   //= "RETURN_VALUE"
 )
 
 type Object interface {
@@ -36,3 +37,11 @@ type Null struct{}
 
 func (n *Null) Inspect() string  { return "null" }
 func (n *Null) Type() ObjectType { return NULL_OBJ }
+
+// return Val
+type ReturnValue struct {
+	Value Object
+}
+
+func (rv *ReturnValue) Inspect() string  { return rv.Value.Inspect() }
+func (rv *ReturnValue) Type() ObjectType { return RETURN_VALUE_OBJ }
