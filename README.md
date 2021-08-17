@@ -72,12 +72,12 @@ GO_MOCK_TEST=1 go test -v
 ```
 
 ##### GoConvey
-项目地址: <https://github.com/smartystreets/goconvey>
-管理和运行测试用例, 提供丰富的断言函数, 还提供webui的测试框架
+项目地址: <https://github.com/smartystreets/goconvey>  
+管理和运行测试用例, 提供丰富的断言函数, 还提供webui的测试框架  
 
-运行 `$GOPATH/bin/goconvey` 可以打开web界面
+运行 `$GOPATH/bin/goconvey` 可以打开web界面  
 
 ##### GoStub
-项目地址: <https://github.com/prashantv/gostub>
-<https://www.jianshu.com/p/53a531852619>
-可以对全局变量、函数或过程打桩
+项目地址: <https://github.com/prashantv/gostub>  
+<https://www.jianshu.com/p/53a531852619>  
+可以对全局变量、函数或过程打桩  

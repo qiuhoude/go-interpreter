@@ -19,6 +19,9 @@ func Eval(node ast.Node) object.Object {
 		return evalStatements(node.Statements)
 	case *ast.ExpressionStatement:
 		return Eval(node.Expression)
+	case *ast.BlockStatement: // {}
+		return evalStatements(node.Statements)
+
 		// expressions
 	case *ast.IntegerLiteral:
 		return &object.Integer{Value: node.Value}
@@ -27,9 +30,84 @@ func Eval(node ast.Node) object.Object {
 	case *ast.PrefixExpression:
 		right := Eval(node.Right)
 		return evalPrefixExpression(node.Operator, right)
-
+	case *ast.InfixExpression:
+		left := Eval(node.Left)
+		right := Eval(node.Right)
+		return evalInfixExpression(node.Operator, left, right)
+	case *ast.IfExpression:
+		return evalIfExpression(node)
 	}
 	return nil
+}
+
+func evalIfExpression(ie *ast.IfExpression) object.Object {
+	condition := Eval(ie.Condition)
+
+	switch {
+	case isTruthy(condition):
+		return Eval(ie.Consequence)
+	case ie.Alternative != nil:
+		return Eval(ie.Alternative)
+	default:
+		return NULL
+	}
+}
+
+func isTruthy(obj object.Object) bool {
+	// “truthy” means: it’s not null and it’s not false
+	switch obj {
+	case NULL, FALSE:
+		return false
+	default:
+		return true
+	}
+}
+func evalInfixExpression(operator string, left object.Object, right object.Object) object.Object {
+	switch {
+	case left.Type() == object.INTEGER_OBJ && right.Type() == object.INTEGER_OBJ: // 左右都是integer数据类型直接进行运算
+		return evalIntegerInfixExpression(operator, left, right)
+	case left.Type() == object.BOOLEAN_OBJ && right.Type() == object.BOOLEAN_OBJ: // 左右都是Boolean数据类型
+		return evalBooleanInfixExpression(operator, left, right)
+	}
+	return NULL
+}
+
+func evalBooleanInfixExpression(operator string, left object.Object, right object.Object) object.Object {
+	leftVal := left.(*object.Boolean).Value
+	rightVal := right.(*object.Boolean).Value
+	switch operator {
+	case "!=":
+		return nativeBoolToBooleanObject(leftVal != rightVal)
+	case "==":
+		return nativeBoolToBooleanObject(leftVal == rightVal)
+	default:
+		return NULL
+	}
+}
+
+func evalIntegerInfixExpression(operator string, left object.Object, right object.Object) object.Object {
+	leftVal := left.(*object.Integer).Value
+	rightVal := right.(*object.Integer).Value
+	switch operator {
+	case "+":
+		return &object.Integer{Value: leftVal + rightVal}
+	case "-":
+		return &object.Integer{Value: leftVal - rightVal}
+	case "*":
+		return &object.Integer{Value: leftVal * rightVal}
+	case "/":
+		return &object.Integer{Value: leftVal / rightVal}
+	case "<":
+		return nativeBoolToBooleanObject(leftVal < rightVal)
+	case ">":
+		return nativeBoolToBooleanObject(leftVal > rightVal)
+	case "==":
+		return nativeBoolToBooleanObject(leftVal == rightVal)
+	case "!=":
+		return nativeBoolToBooleanObject(leftVal != rightVal)
+	default:
+		return NULL
+	}
 }
 
 func evalPrefixExpression(operator string, right object.Object) object.Object {
