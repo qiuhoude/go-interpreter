@@ -186,6 +186,74 @@ if (10 > 1) {
 			So(actual, shouldIsIntegerObject, tt.expected)
 		}
 	})
+
+}
+
+func TestErrorHandling(t *testing.T) {
+	Convey("TestErrorHandling", t, func() {
+		cases := []struct {
+			input    string
+			expected string
+		}{
+			{
+				"5 + true;",
+				"type mismatch: INTEGER + BOOLEAN",
+			},
+			{
+				"5 + true; 5;",
+				"type mismatch: INTEGER + BOOLEAN",
+			},
+			{
+				"-true",
+				"unknown operator: -BOOLEAN",
+			},
+			{
+				"true + false;",
+				"unknown operator: BOOLEAN + BOOLEAN",
+			},
+			{
+				"5; true + false; 5",
+				"unknown operator: BOOLEAN + BOOLEAN",
+			},
+			{
+				"if (10 > 1) { true + false; }",
+				"unknown operator: BOOLEAN + BOOLEAN",
+			},
+			{
+				`
+if (10 > 1) {
+if (10 > 1) {
+return true + false;
+}
+return 1;
+}`,
+				"unknown operator: BOOLEAN + BOOLEAN",
+			},
+		}
+		for _, tt := range cases {
+			actual := testEval(tt.input)
+			Convey(tt.input, func() {
+				So(actual, shouldIsErrorObjectMsgEq, tt.expected)
+			})
+
+		}
+	})
+}
+
+func shouldIsErrorObjectMsgEq(actual interface{}, expectedList ...interface{}) string {
+
+	expected := expectedList[0].(string)
+
+	result, ok := actual.(*object.Error)
+	if !ok {
+		return fmt.Sprintf("no error object returned. got=%T (%+v)",
+			actual, actual)
+	}
+	if result.Message != expected {
+		return fmt.Sprintf("wrong error message. expected=%q, got=%q",
+			expected, result.Message)
+	}
+	return ""
 }
 
 func shouldIsNullObject(actual interface{}, _ ...interface{}) string {

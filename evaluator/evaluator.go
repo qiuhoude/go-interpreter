@@ -1,6 +1,7 @@
 package evaluator
 
 import (
+	"fmt"
 	"github.com/qiuhoude/go-interpreter/ast"
 	"github.com/qiuhoude/go-interpreter/object"
 	"github.com/qiuhoude/go-interpreter/token"
@@ -23,7 +24,11 @@ func Eval(node ast.Node) object.Object {
 		return evalBlockStatements(node.Statements)
 	case *ast.ReturnStatement:
 		val := Eval(node.Value)
+		if isError(val) {
+			return val
+		}
 		return &object.ReturnValue{Value: val}
+
 		// expressions
 	case *ast.IntegerLiteral:
 		return &object.Integer{Value: node.Value}
@@ -31,15 +36,31 @@ func Eval(node ast.Node) object.Object {
 		return nativeBoolToBooleanObject(node.Value)
 	case *ast.PrefixExpression:
 		right := Eval(node.Right)
+		if isError(right) {
+			return right
+		}
 		return evalPrefixExpression(node.Operator, right)
 	case *ast.InfixExpression:
 		left := Eval(node.Left)
+		if isError(left) {
+			return left
+		}
 		right := Eval(node.Right)
+		if isError(right) {
+			return right
+		}
 		return evalInfixExpression(node.Operator, left, right)
 	case *ast.IfExpression:
 		return evalIfExpression(node)
 	}
 	return nil
+}
+
+func isError(obj object.Object) bool {
+	if obj != nil {
+		return obj.Type() == object.ERROR_OBJ
+	}
+	return false
 }
 
 func evalIfExpression(ie *ast.IfExpression) object.Object {
@@ -66,12 +87,18 @@ func isTruthy(obj object.Object) bool {
 }
 func evalInfixExpression(operator string, left object.Object, right object.Object) object.Object {
 	switch {
-	case left.Type() == object.INTEGER_OBJ && right.Type() == object.INTEGER_OBJ: // 左右都是integer数据类型直接进行运算
+	case left.Type() == object.INTEGER_OBJ && right.Type() == left.Type(): // 左右都是integer数据类型直接进行运算
 		return evalIntegerInfixExpression(operator, left, right)
-	case left.Type() == object.BOOLEAN_OBJ && right.Type() == object.BOOLEAN_OBJ: // 左右都是Boolean数据类型
+	case left.Type() == object.BOOLEAN_OBJ && right.Type() == left.Type(): // 左右都是Boolean数据类型
 		return evalBooleanInfixExpression(operator, left, right)
+	case right.Type() != left.Type(): // 左右两边类型不相等
+		return newError("type mismatch: %s %s %s",
+			left.Type(), operator, right.Type())
+
+	default:
+		return newError("unknown operator: %s %s %s",
+			left.Type(), operator, right.Type())
 	}
-	return NULL
 }
 
 func evalBooleanInfixExpression(operator string, left object.Object, right object.Object) object.Object {
@@ -83,7 +110,8 @@ func evalBooleanInfixExpression(operator string, left object.Object, right objec
 	case "==":
 		return nativeBoolToBooleanObject(leftVal == rightVal)
 	default:
-		return NULL
+		return newError("unknown operator: %s %s %s",
+			left.Type(), operator, right.Type())
 	}
 }
 
@@ -108,7 +136,9 @@ func evalIntegerInfixExpression(operator string, left object.Object, right objec
 	case "!=":
 		return nativeBoolToBooleanObject(leftVal != rightVal)
 	default:
-		return NULL
+		return newError("unknown operator: %s %s %s",
+			left.Type(), operator, right.Type())
+
 	}
 }
 
@@ -121,7 +151,7 @@ func evalPrefixExpression(operator string, right object.Object) object.Object {
 	case "-":
 		return evalMinusOrPlusOperatorExpression(token.MINUS, right)
 	default:
-		return NULL
+		return newError("unknown operator: %s%s", operator, right.Type())
 
 	}
 }
@@ -129,7 +159,7 @@ func evalPrefixExpression(operator string, right object.Object) object.Object {
 func evalMinusOrPlusOperatorExpression(op token.TokenType, right object.Object) object.Object {
 	r, ok := right.(*object.Integer)
 	if !ok {
-		return NULL
+		return newError("unknown operator: -%s", right.Type())
 	}
 	if op == token.MINUS {
 		r.Value = -r.Value
@@ -171,10 +201,12 @@ func evalStatements(stmts []ast.Statement) object.Object {
 
 	for _, s := range stmts {
 		result = Eval(s) // 解析最后一条语句才是返回值
-
-		if returnValue, ok := result.(*object.ReturnValue); ok {
-			// program 外层遇到 return 返回
-			return returnValue.Value
+		switch result := result.(type) {
+		case *object.ReturnValue:
+			// 此处运用于只有一层return语句时有效,套会导致只有最外层的return语句有效
+			return result.Value
+		case *object.Error: // 有错误提前返回
+			return result
 		}
 	}
 	return result
@@ -185,11 +217,18 @@ func evalBlockStatements(stmts []ast.Statement) object.Object {
 
 	for _, s := range stmts {
 		result = Eval(s)
-		if result != nil && result.Type() == object.RETURN_VALUE_OBJ {
-			return result
+		if result != nil {
+			if result.Type() == object.RETURN_VALUE_OBJ || result.Type() == object.ERROR_OBJ {
+				// 返回return本身, 表示外层也是获得statement的object也是return,不往下继续进行解析到此结束
+				return result
+			}
 		}
 	}
 	return result
+}
+
+func newError(format string, a ...interface{}) *object.Error {
+	return &object.Error{Message: fmt.Sprintf(format, a...)}
 }
 
 /*
