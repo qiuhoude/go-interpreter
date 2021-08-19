@@ -252,6 +252,25 @@ func (be *BlockExpression) String() string {
 	return out.String()
 }
 
+// 分配表达式 identifier = expression
+type AssignExpression struct {
+	Name  *Identifier
+	Value Expression
+}
+
+func (ae *AssignExpression) expressionNode()      {}
+func (ae *AssignExpression) TokenLiteral() string { return ae.Name.Token.Literal }
+func (ae *AssignExpression) String() string {
+	var out bytes.Buffer
+	out.WriteString(ae.Name.String())
+	out.WriteString(" = ")
+	if ae.Value != nil {
+		out.WriteString(ae.Value.String())
+	}
+	out.WriteString(";")
+	return out.String()
+}
+
 // ==================== 叶子节点 ==================
 // IdentifierExpression
 type Identifier struct {

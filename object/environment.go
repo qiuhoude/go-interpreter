@@ -5,6 +5,10 @@ package object
 
 type Environment interface {
 	Get(name string) (Object, bool)
+	/*
+		只在本层级进行设置值
+	*/
+	SetLocal(name string, val Object) Object
 	Set(name string, val Object) Object
 }
 
@@ -16,6 +20,10 @@ type globalEnv struct {
 func (e *globalEnv) Get(name string) (val Object, ok bool) {
 	val, ok = e.store[name]
 	return
+}
+
+func (e *globalEnv) SetLocal(name string, val Object) Object {
+	return e.Set(name, val)
 }
 
 func (e *globalEnv) Set(name string, val Object) Object {
@@ -46,9 +54,15 @@ func (e *localEnv) Get(name string) (Object, bool) {
 
 }
 
-func (e *localEnv) Set(name string, val Object) Object {
+func (e *localEnv) SetLocal(name string, val Object) Object {
 	e.localStore[name] = val // 只在本地设置值
 	return val
+}
+func (e *localEnv) Set(name string, val Object) Object {
+	if _, ok := e.localStore[name]; ok { // 本地有只修改本地, 否则就去上层分配赋值
+		return e.SetLocal(name, val)
+	}
+	return e.Environment.Set(name, val)
 }
 
 // 用于 带有{} 的语句

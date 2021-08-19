@@ -54,10 +54,7 @@ func TestLetStatements(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		l := lexer.New(tt.input)
-		p := New(l)
-		program := p.ParseProgram()
-		checkParserErrors(t, p)
+		program := buildAST(t, tt.input)
 
 		if len(program.Statements) != 1 {
 			t.Fatalf("program.Statements does not contain 1 statements. got=%d",
@@ -76,6 +73,36 @@ func TestLetStatements(t *testing.T) {
 	}
 }
 
+func TestAssignExpression(t *testing.T) {
+	tests := []struct {
+		input              string
+		expectedIdentifier string
+		expectedValue      interface{}
+	}{
+		{"x = 5;", "x", 5},
+		{"y = true;", "y", true},
+		{"foobar = y;", "foobar", "y"},
+	}
+
+	for _, tt := range tests {
+		program := buildAST(t, tt.input)
+
+		if len(program.Statements) != 1 {
+			t.Fatalf("program.Statements does not contain 1 statements. got=%d",
+				len(program.Statements))
+		}
+
+		stmt := program.Statements[0]
+		expStmt, ok := stmt.(*ast.ExpressionStatement)
+		if !ok {
+			t.Fatalf("stmt not *ast.ExpressionStatement. got=%T", stmt)
+		}
+		if !testAssignExpression(t, expStmt.Expression, tt.expectedIdentifier, tt.expectedValue) {
+			return
+		}
+
+	}
+}
 func TestReturnStatements(t *testing.T) {
 	tests := []struct {
 		input         string
@@ -87,10 +114,7 @@ func TestReturnStatements(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		l := lexer.New(tt.input)
-		p := New(l)
-		program := p.ParseProgram()
-		checkParserErrors(t, p)
+		program := buildAST(t, tt.input)
 
 		if len(program.Statements) != 1 {
 			t.Fatalf("program.Statements does not contain 1 statements. got=%d",
@@ -620,6 +644,21 @@ func checkParserErrors(t *testing.T, p *Parser) {
 		t.Errorf("parser error: %q", msg)
 	}
 	t.FailNow()
+}
+
+func testAssignExpression(t *testing.T, exp ast.Expression, expectedIdentifier string, expectedValue interface{}) bool {
+	assignExp, ok := exp.(*ast.AssignExpression)
+	if !ok {
+		t.Errorf("expStmt not *ast.AssignExpression. got=%T", assignExp)
+		return false
+	}
+	if assignExp.Name.Value != expectedIdentifier {
+		t.Errorf("assignExp.Name.Value not '%s'. got=%s", expectedIdentifier, assignExp.Name.Value)
+	}
+	if !testLiteralExpression(t, assignExp.Value, expectedValue) {
+		return false
+	}
+	return true
 }
 
 func testLetStatement(t *testing.T, s ast.Statement, name string) bool {

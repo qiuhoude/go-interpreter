@@ -251,6 +251,8 @@ return 1;
 			{"let a = 5; let b = a; let c = a + b + 5; c;", 15},
 			{"let a = 6; if( true ){ let a = 5; }  a;", 6},
 			{"let a = 10; { let a = 5; };  a;", 10},
+			{"let a = 10; { a = 5; };  a;", 5},
+			{"{ a = 5; };  a;", 5},
 		}
 		for _, tt := range cases {
 			actual := testEval(tt.input)

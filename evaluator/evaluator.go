@@ -37,9 +37,15 @@ func doEval(node ast.Node, env object.Environment) object.Object {
 		if isError(val) {
 			return val
 		}
-		env.Set(node.Name.Value, val)
+		env.SetLocal(node.Name.Value, val)
 
 		// expressions
+	case *ast.AssignExpression:
+		val := doEval(node.Value, env)
+		if isError(val) {
+			return val
+		}
+		env.Set(node.Name.Value, val)
 	case *ast.IntegerLiteral:
 		return &object.Integer{Value: node.Value}
 	case *ast.Boolean:
@@ -66,6 +72,7 @@ func doEval(node ast.Node, env object.Environment) object.Object {
 		return evalIdentifier(node, env)
 	case *ast.BlockExpression:
 		return Eval(node.Body, env)
+
 	}
 	return nil
 }

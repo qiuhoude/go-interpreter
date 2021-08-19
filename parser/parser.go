@@ -12,6 +12,7 @@ const (
 	// precedence operator
 	_ int = iota
 	LOWEST
+	ASSIGN
 	EQUALS      // ==
 	LESSGREATER // > or <  >= <=
 	SUM         // +
@@ -33,6 +34,7 @@ var precedences = map[token.TokenType]int{
 	token.SLASH:    PRODUCT,
 	token.ASTERISK: PRODUCT,
 	token.LPAREN:   CALL,
+	token.ASSIGN:   ASSIGN,
 }
 
 // 前缀 和 中缀解析函数
@@ -84,7 +86,8 @@ func New(l *lexer.Lexer) *Parser {
 	p.RegisterInfix(token.MINUS, p.parseInfixExpression)
 	p.RegisterInfix(token.SLASH, p.parseInfixExpression)
 	p.RegisterInfix(token.ASTERISK, p.parseInfixExpression)
-	p.RegisterInfix(token.LPAREN, p.parseCallExpression) // call
+	p.RegisterInfix(token.LPAREN, p.parseCallExpression)   // call
+	p.RegisterInfix(token.ASSIGN, p.parseAssignExpression) // 分配表达式
 
 	p.nextToken()
 	p.nextToken()
@@ -257,6 +260,22 @@ func (p *Parser) parsePrefixExpression() ast.Expression {
 	p.nextToken()
 	pe.Right = p.parseExpression(PREFIX)
 	return pe
+}
+
+func (p *Parser) parseAssignExpression(left ast.Expression) ast.Expression {
+	defer untrace(trace("parseAssignExpression"))
+	leftI, ok := left.(*ast.Identifier)
+	if !ok {
+		p.errors = append(p.errors, fmt.Sprintf("assign left is not Identifier got %v instead", left))
+		return nil
+	}
+	exp := &ast.AssignExpression{
+		Name: leftI,
+	}
+	precedences := p.curPrecedence()
+	p.nextToken()
+	exp.Value = p.parseExpression(precedences)
+	return exp
 }
 
 func (p *Parser) parseInfixExpression(left ast.Expression) ast.Expression {
