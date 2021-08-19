@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/qiuhoude/go-interpreter/evaluator"
 	"github.com/qiuhoude/go-interpreter/lexer"
+	"github.com/qiuhoude/go-interpreter/object"
 	"github.com/qiuhoude/go-interpreter/parser"
 	"io"
 )
@@ -40,7 +41,7 @@ func Start(in io.Reader, out io.Writer) {
 		//	_, _ = fmt.Fprintf(out, "%+v\n", tok)
 		//}
 
-		evaluated := evaluator.Eval(program)
+		evaluated := evaluator.Eval(program, object.GlobalEnv())
 		if evaluated != nil {
 			_, _ = fmt.Fprintf(out, "%s\n", evaluated.Inspect())
 		}

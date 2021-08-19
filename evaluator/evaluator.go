@@ -13,21 +13,31 @@ var (
 	FALSE = &object.Boolean{Value: false}
 )
 
-func Eval(node ast.Node) object.Object {
+func Eval(node ast.Node, env object.Environment) object.Object {
+	return doEval(node, env)
+}
+
+func doEval(node ast.Node, env object.Environment) object.Object {
 	switch node := node.(type) {
 	// statements
 	case *ast.Program: //AST root node
-		return evalStatements(node.Statements)
+		return evalStatements(node.Statements, env)
 	case *ast.ExpressionStatement:
-		return Eval(node.Expression)
+		return doEval(node.Expression, env)
 	case *ast.BlockStatement: // {}
-		return evalBlockStatements(node.Statements)
+		return evalBlockStatements(node.Statements, object.WithLocalEnv(env)) // 创建本地的env 避免污染全局
 	case *ast.ReturnStatement:
-		val := Eval(node.Value)
+		val := doEval(node.Value, env)
 		if isError(val) {
 			return val
 		}
 		return &object.ReturnValue{Value: val}
+	case *ast.LetStatement: // let 语句, 将identifier的值绑定到 environment 中
+		val := doEval(node.Value, env)
+		if isError(val) {
+			return val
+		}
+		env.Set(node.Name.Value, val)
 
 		// expressions
 	case *ast.IntegerLiteral:
@@ -35,25 +45,37 @@ func Eval(node ast.Node) object.Object {
 	case *ast.Boolean:
 		return nativeBoolToBooleanObject(node.Value)
 	case *ast.PrefixExpression:
-		right := Eval(node.Right)
+		right := doEval(node.Right, env)
 		if isError(right) {
 			return right
 		}
 		return evalPrefixExpression(node.Operator, right)
 	case *ast.InfixExpression:
-		left := Eval(node.Left)
+		left := doEval(node.Left, env)
 		if isError(left) {
 			return left
 		}
-		right := Eval(node.Right)
+		right := doEval(node.Right, env)
 		if isError(right) {
 			return right
 		}
 		return evalInfixExpression(node.Operator, left, right)
 	case *ast.IfExpression:
-		return evalIfExpression(node)
+		return evalIfExpression(node, env)
+	case *ast.Identifier:
+		return evalIdentifier(node, env)
+	case *ast.BlockExpression:
+		return Eval(node.Body, env)
 	}
 	return nil
+}
+
+func evalIdentifier(node *ast.Identifier, env object.Environment) object.Object {
+	val, ok := env.Get(node.Value)
+	if !ok {
+		return newError("identifier not found: " + node.Value)
+	}
+	return val
 }
 
 func isError(obj object.Object) bool {
@@ -63,14 +85,14 @@ func isError(obj object.Object) bool {
 	return false
 }
 
-func evalIfExpression(ie *ast.IfExpression) object.Object {
-	condition := Eval(ie.Condition)
+func evalIfExpression(ie *ast.IfExpression, env object.Environment) object.Object {
+	condition := doEval(ie.Condition, env)
 
 	switch {
 	case isTruthy(condition):
-		return Eval(ie.Consequence)
+		return doEval(ie.Consequence, env)
 	case ie.Alternative != nil:
-		return Eval(ie.Alternative)
+		return doEval(ie.Alternative, env)
 	default:
 		return NULL
 	}
@@ -196,11 +218,11 @@ return 10;
 return 1;
 }
 */
-func evalStatements(stmts []ast.Statement) object.Object {
+func evalStatements(stmts []ast.Statement, env object.Environment) object.Object {
 	var result object.Object
 
 	for _, s := range stmts {
-		result = Eval(s) // 解析最后一条语句才是返回值
+		result = doEval(s, env) // 解析最后一条语句才是返回值
 		switch result := result.(type) {
 		case *object.ReturnValue:
 			// 此处运用于只有一层return语句时有效,套会导致只有最外层的return语句有效
@@ -212,11 +234,11 @@ func evalStatements(stmts []ast.Statement) object.Object {
 	return result
 }
 
-func evalBlockStatements(stmts []ast.Statement) object.Object {
+func evalBlockStatements(stmts []ast.Statement, env object.Environment) object.Object {
 	var result object.Object
 
 	for _, s := range stmts {
-		result = Eval(s)
+		result = doEval(s, env)
 		if result != nil {
 			if result.Type() == object.RETURN_VALUE_OBJ || result.Type() == object.ERROR_OBJ {
 				// 返回return本身, 表示外层也是获得statement的object也是return,不往下继续进行解析到此结束
@@ -239,12 +261,12 @@ function eval(astNode) {
 	} else if (astNode is booleanLiteral) {
 		return astNode.booleanValue
 	} else if (astNode is infixExpression) {
-		leftEvaluated = eval(astNode.Left)
-		rightEvaluated = eval(astNode.Right)
+		leftdoEvaluated = eval(astNode.Left)
+		rightdoEvaluated = eval(astNode.Right)
 	if astNode.Operator == "+" {
-		return leftEvaluated + rightEvaluated
+		return leftdoEvaluated + rightdoEvaluated
 	} else if ast.Operator == "-" {
-		return leftEvaluated - rightEvaluated
+		return leftdoEvaluated - rightdoEvaluated
 	}
 	}
 }

@@ -13,7 +13,7 @@ func testEval(input string) object.Object {
 	l := lexer.New(input)
 	p := parser.New(l)
 	program := p.ParseProgram()
-	return Eval(program)
+	return Eval(program, object.GlobalEnv())
 }
 
 func TestEvaluator(t *testing.T) {
@@ -187,13 +187,10 @@ if (10 > 1) {
 		}
 	})
 
-}
-
-func TestErrorHandling(t *testing.T) {
 	Convey("TestErrorHandling", t, func() {
 		cases := []struct {
-			input    string
-			expected string
+			input           string
+			expectedMessage string
 		}{
 			{
 				"5 + true;",
@@ -229,19 +226,40 @@ return 1;
 }`,
 				"unknown operator: BOOLEAN + BOOLEAN",
 			},
+			{
+				"foobar",
+				"identifier not found: foobar",
+			},
 		}
 		for _, tt := range cases {
 			actual := testEval(tt.input)
 			Convey(tt.input, func() {
-				So(actual, shouldIsErrorObjectMsgEq, tt.expected)
+				So(actual, shouldIsErrorObjectMsgEq, tt.expectedMessage)
 			})
 
+		}
+	})
+
+	Convey("TestLetStatements", t, func() {
+		cases := []struct {
+			input    string
+			expected int64
+		}{
+			{"let a = 5; a;", 5},
+			{"let a = 5 * 5; a;", 25},
+			{"let a = 5; let b = a; b;", 5},
+			{"let a = 5; let b = a; let c = a + b + 5; c;", 15},
+			{"let a = 6; if( true ){ let a = 5; }  a;", 6},
+			{"let a = 10; { let a = 5; };  a;", 10},
+		}
+		for _, tt := range cases {
+			actual := testEval(tt.input)
+			So(actual, shouldIsIntegerObject, tt.expected)
 		}
 	})
 }
 
 func shouldIsErrorObjectMsgEq(actual interface{}, expectedList ...interface{}) string {
-
 	expected := expectedList[0].(string)
 
 	result, ok := actual.(*object.Error)

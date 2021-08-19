@@ -236,6 +236,22 @@ func (ce *CallExpression) String() string {
 	return out.String()
 }
 
+// BlockExpression 语句块表达式, 单纯的{}语句表达式
+type BlockExpression struct {
+	Token token.Token // the { token
+	Body  *BlockStatement
+}
+
+func (be *BlockExpression) expressionNode()      {}
+func (be *BlockExpression) TokenLiteral() string { return be.Token.Literal }
+func (be *BlockExpression) String() string {
+	var out bytes.Buffer
+	out.WriteString("{")
+	out.WriteString(be.Body.String())
+	out.WriteString("}")
+	return out.String()
+}
+
 // ==================== 叶子节点 ==================
 // IdentifierExpression
 type Identifier struct {

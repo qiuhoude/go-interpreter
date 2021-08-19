@@ -361,7 +361,7 @@ func TestOperatorPrecedenceParsing(t *testing.T) {
 }
 
 func TestIfExpression(t *testing.T) {
-	input := `if (x < y) { x }`
+	input := `if (x < y) { x } `
 	program := buildAST(t, input)
 
 	if len(program.Statements) != 1 {
@@ -394,7 +394,7 @@ func TestIfExpression(t *testing.T) {
 	if !testIdentifier(t, consequence.Expression, "x") {
 		return
 	}
-	if exp.Alternative == nil {
+	if exp.Alternative != nil {
 		t.Errorf("exp.Alternative.Statements was not nil. got=%+v", exp.Alternative)
 	}
 }
@@ -547,8 +547,8 @@ func TestCallExpressionParsing(t *testing.T) {
 	}
 
 	testLiteralExpression(t, exp.Arguments[0], 1)
-	testInfixExpression(t, exp.Arguments[1], "2", "*", "3")
-	testInfixExpression(t, exp.Arguments[2], "4", "+", "5")
+	testInfixExpression(t, exp.Arguments[1], 2, "*", 3)
+	testInfixExpression(t, exp.Arguments[2], 4, "+", 5)
 
 }
 

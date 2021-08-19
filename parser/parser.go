@@ -69,6 +69,8 @@ func New(l *lexer.Lexer) *Parser {
 	p.RegisterPrefix(token.FALSE, p.parseBoolean)
 	p.RegisterPrefix(token.LPAREN, p.parseGroupedExpression)
 
+	p.RegisterPrefix(token.LBRACE, p.parseBlockExpression)
+
 	p.RegisterPrefix(token.IF, p.parseIfExpression)
 	p.RegisterPrefix(token.FUNCTION, p.parseFunctionLiteral)
 
@@ -340,10 +342,17 @@ func (p *Parser) parseFunctionLiteral() ast.Expression {
 	return exp
 }
 
+func (p *Parser) parseBlockExpression() ast.Expression {
+	defer untrace(trace("parseBlockExpression"))
+	exp := &ast.BlockExpression{Token: p.curToken}
+	exp.Body = p.parseBlockStatement()
+	return exp
+}
+
 func (p *Parser) parseFunctionParameters() []*ast.Identifier {
 	defer untrace(trace("parseFunctionParameters"))
 	// fn (a,b,c...)
-	identifiers := []*ast.Identifier{}
+	var identifiers []*ast.Identifier
 
 	if p.peekTokenIs(token.RPAREN) {
 		p.nextToken()
