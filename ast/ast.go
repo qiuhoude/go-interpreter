@@ -215,7 +215,7 @@ func (fn *FunctionLiteral) String() string {
 // <expression>(<comma separated expressions>) , fn(x, y) { x + y; }(2, 3), add(2, 3), add(2 + 2, 3 * 3 * 3)
 type CallExpression struct {
 	Token     token.Token  // The '(' token
-	Function  Expression   // eg add(1,2), add
+	Function  Expression   // Identifier or FunctionLiteral ,eg add(1,2), add
 	Arguments []Expression // eg add(1,2), 1,2
 }
 

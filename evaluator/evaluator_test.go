@@ -259,6 +259,45 @@ return 1;
 			So(actual, shouldIsIntegerObject, tt.expected)
 		}
 	})
+
+	Convey("TestFunctionObject", t, func() {
+		input := "fn(x) { x + 2; };"
+		actual := testEval(input)
+		So(actual, shouldIsFunctionObject)
+		fn := actual.(*object.Function)
+		So(len(fn.Parameters), ShouldEqual, 1)
+		So(fn.Parameters[0].String(), ShouldEqual, "x")
+		So(fn.Body.String(), ShouldEqual, "(x + 2)")
+
+	})
+
+	Convey("TestFunctionApplication", t, func() {
+		cases := []struct {
+			input    string
+			expected int64
+		}{
+			{"let identity = fn(x) { x; }; identity(5);", 5},
+			{"let identity = fn(x) { return x; }; identity(5);", 5},
+			{"let double = fn(x) { x * 2; }; double(5);", 10},
+			{"let add = fn(x, y) { x + y; }; add(5, 5);", 10},
+			{"let add = fn(x, y) { x + y; }; add(5 + 5, add(5, 5));", 20},
+			{"fn(x) { x; }(5)", 5},
+		}
+		for _, tt := range cases {
+			actual := testEval(tt.input)
+			So(actual, shouldIsIntegerObject, tt.expected)
+		}
+
+	})
+}
+
+func shouldIsFunctionObject(actual interface{}, _ ...interface{}) string {
+	_, ok := actual.(*object.Function)
+	if !ok {
+		return fmt.Sprintf("object is not Function. got=%T (%+v)",
+			actual, actual)
+	}
+	return ""
 }
 
 func shouldIsErrorObjectMsgEq(actual interface{}, expectedList ...interface{}) string {

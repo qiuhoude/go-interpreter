@@ -71,10 +71,77 @@ func doEval(node ast.Node, env object.Environment) object.Object {
 	case *ast.Identifier:
 		return evalIdentifier(node, env)
 	case *ast.BlockExpression:
-		return Eval(node.Body, env)
-
+		return doEval(node.Body, env)
+	case *ast.FunctionLiteral:
+		return &object.Function{
+			Parameters: node.Parameters,
+			Body:       node.Body,
+			Env:        env,
+		}
+	case *ast.CallExpression:
+		return evalCallExpression(node, env)
 	}
 	return nil
+}
+
+func evalCallExpression(node *ast.CallExpression, env object.Environment) object.Object {
+	var fnObj object.Object
+	//switch n := node.Function.(type) {
+	//case *ast.Identifier: // 之前使用let 声明的function. eg: add(1,2)
+	//	fnObj = evalIdentifier(n, env)
+	//case *ast.FunctionLiteral: // eg: fnObj(x,y){x+y}(1,2)
+	//	fnObj = doEval(node.Function, env)
+	//}
+	// 合并程 doEval,因为doEval如时Identifier类型也会调用evalIdentifier()
+	fnObj = doEval(node.Function, env)
+	if isError(fnObj) {
+		return fnObj
+	}
+	// 评估参数
+	args := evalExpressions(node.Arguments, env)
+	if errObj, has := hasError(args); has { // 有错误就返回
+		return errObj
+	}
+	return applyFunction(fnObj, args)
+}
+
+func applyFunction(fnObj object.Object, args []object.Object) object.Object {
+	fn, ok := fnObj.(*object.Function)
+	if !ok {
+		return newError("not a function: %s", fn.Type())
+	}
+	env := extendFunctionEnv(fn, args)
+	evaluated := doEval(fn.Body, env)   // eval 函数体求值
+	return unwrapReturnValue(evaluated) // 如果有 return语句,进行解包后得到实际的obj值返回
+}
+
+func unwrapReturnValue(obj object.Object) object.Object {
+	if returnValue, ok := obj.(*object.ReturnValue); ok {
+		return returnValue.Value
+	}
+	return obj
+}
+
+func extendFunctionEnv(fn *object.Function, args []object.Object) object.Environment {
+	env := object.WithLocalEnv(fn.Env)
+	// 绑定参数值到本地env中
+	for paramIdx, param := range fn.Parameters {
+		env.Set(param.Value, args[paramIdx])
+	}
+	return env
+}
+
+func evalExpressions(exps []ast.Expression, env object.Environment) []object.Object {
+	var result []object.Object
+	for _, e := range exps {
+		evaluated := doEval(e, env)
+		if isError(evaluated) {
+			return []object.Object{evaluated}
+		}
+		result = append(result, evaluated)
+	}
+	return result
+
 }
 
 func evalIdentifier(node *ast.Identifier, env object.Environment) object.Object {
@@ -83,6 +150,16 @@ func evalIdentifier(node *ast.Identifier, env object.Environment) object.Object 
 		return newError("identifier not found: " + node.Value)
 	}
 	return val
+}
+
+func hasError(objs []object.Object) (object.Object, bool) {
+	for i := range objs {
+		if objs[i].Type() == object.ERROR_OBJ {
+			return objs[i], true
+		}
+	}
+	return nil, false
+
 }
 
 func isError(obj object.Object) bool {
