@@ -108,13 +108,16 @@ func evalCallExpression(node *ast.CallExpression, env object.Environment) object
 }
 
 func applyFunction(fnObj object.Object, args []object.Object) object.Object {
-	fn, ok := fnObj.(*object.Function)
-	if !ok {
-		return newError("not a function: %s", fn.Type())
+	switch fn := fnObj.(type) {
+	case *object.Function:
+		env := extendFunctionEnv(fn, args)
+		evaluated := doEval(fn.Body, env)   // eval 函数体求值
+		return unwrapReturnValue(evaluated) // 如果有 return语句,进行解包后得到实际的obj值返回
+	case *object.Builtin:
+		return fn.Fn(args...)
+	default:
+		return newError("not a function: %s", fnObj.Type())
 	}
-	env := extendFunctionEnv(fn, args)
-	evaluated := doEval(fn.Body, env)   // eval 函数体求值
-	return unwrapReturnValue(evaluated) // 如果有 return语句,进行解包后得到实际的obj值返回
 }
 
 func unwrapReturnValue(obj object.Object) object.Object {
@@ -147,11 +150,13 @@ func evalExpressions(exps []ast.Expression, env object.Environment) []object.Obj
 }
 
 func evalIdentifier(node *ast.Identifier, env object.Environment) object.Object {
-	val, ok := env.Get(node.Value)
-	if !ok {
-		return newError("identifier not found: " + node.Value)
+	if val, ok := env.Get(node.Value); ok {
+		return val
 	}
-	return val
+	if builtin, ok := builtins[node.Value]; ok {
+		return builtin
+	}
+	return newError("identifier not found: " + node.Value)
 }
 
 func hasError(objs []object.Object) (object.Object, bool) {
