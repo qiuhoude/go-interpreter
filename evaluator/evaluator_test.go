@@ -230,6 +230,10 @@ return 1;
 				"foobar",
 				"identifier not found: foobar",
 			},
+			{
+				`"Hello" - "World"`,
+				"unknown operator: STRING - STRING",
+			},
 		}
 		for _, tt := range cases {
 			actual := testEval(tt.input)
@@ -287,10 +291,44 @@ return 1;
 			actual := testEval(tt.input)
 			So(actual, shouldIsIntegerObject, tt.expected)
 		}
+	})
 
+}
+
+func TestStringLiteral(t *testing.T) {
+
+	Convey("TestStringLiteral", t, func() {
+		cases := []struct {
+			input    string
+			expected string
+		}{
+			{`"Hello World!"`, "Hello World!"},
+			{`"H@@@__@`, "H@@@__@"},
+			{`"Hello" + " " + "World!"`, "Hello World!"},
+			{`"Hello" +" " +  1`, "Hello 1"},
+			{`"Hello" +" " + true`, "Hello true"},
+		}
+		for _, tt := range cases {
+			actual := testEval(tt.input)
+			So(actual, shouldIsStringObject, tt.expected)
+		}
 	})
 }
 
+func shouldIsStringObject(actual interface{}, expectedList ...interface{}) string {
+	expected := expectedList[0].(string)
+
+	result, ok := actual.(*object.String)
+	if !ok {
+		return fmt.Sprintf("object is not String. got=%T (%+v)",
+			actual, actual)
+	}
+	if result.Value != expected {
+		return fmt.Sprintf("String has wrong value. expected=%q, got=%q",
+			expected, result.Value)
+	}
+	return ""
+}
 func shouldIsFunctionObject(actual interface{}, _ ...interface{}) string {
 	_, ok := actual.(*object.Function)
 	if !ok {

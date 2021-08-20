@@ -63,6 +63,7 @@ func New(l *lexer.Lexer) *Parser {
 	}
 
 	p.RegisterPrefix(token.IDENT, p.parseIdentifier)
+	p.RegisterPrefix(token.STRING, p.parseStringLiteral)
 	p.RegisterPrefix(token.INT, p.parseIntegerLiteral)
 	p.RegisterPrefix(token.BANG, p.parsePrefixExpression)
 	p.RegisterPrefix(token.MINUS, p.parsePrefixExpression)
@@ -236,8 +237,13 @@ func (p *Parser) parseExpression(precedence int) ast.Expression {
 }
 
 func (p *Parser) parseIdentifier() ast.Expression {
-	defer untrace(trace("parseIntegerLiteral"))
+	defer untrace(trace("parseIdentifier"))
 	return &ast.Identifier{Token: p.curToken, Value: p.curToken.Literal}
+}
+
+func (p *Parser) parseStringLiteral() ast.Expression {
+	defer untrace(trace("parseStringLiteral"))
+	return &ast.StringLiteral{Token: p.curToken, Value: p.curToken.Literal}
 }
 
 func (p *Parser) parseIntegerLiteral() ast.Expression {

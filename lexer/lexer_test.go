@@ -96,6 +96,9 @@ var tokenTables = []token.Token{
 	{token.INT, "5"},
 	{token.SEMICOLON, ";"},
 
+	{token.STRING, "foobar"},
+	{token.STRING, "foo bar"},
+
 	{token.EOF, ""},
 }
 
@@ -121,6 +124,8 @@ return false;
 
 5 <= 5 >= 5;
 
+"foobar"
+"foo bar"
 `
 
 // mock出来的Lexer
@@ -150,7 +155,7 @@ func newLexer() (l ILexer, deferFn func()) {
 
 func newILexer(t *testing.T) (ILexer, func()) {
 	stubs := gostub.New()
-	stubs.SetEnv("GO_MOCK_TEST", "1")
+	stubs.SetEnv("GO_MOCK_TEST", "0")
 	defer stubs.Reset()
 
 	env := os.Getenv("GO_MOCK_TEST")

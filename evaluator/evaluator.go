@@ -80,6 +80,8 @@ func doEval(node ast.Node, env object.Environment) object.Object {
 		}
 	case *ast.CallExpression:
 		return evalCallExpression(node, env)
+	case *ast.StringLiteral:
+		return &object.String{Value: node.Value}
 	}
 	return nil
 }
@@ -197,6 +199,8 @@ func evalInfixExpression(operator string, left object.Object, right object.Objec
 		return evalIntegerInfixExpression(operator, left, right)
 	case left.Type() == object.BOOLEAN_OBJ && right.Type() == left.Type(): // 左右都是Boolean数据类型
 		return evalBooleanInfixExpression(operator, left, right)
+	case left.Type() == object.STRING_OBJ || right.Type() == object.STRING_OBJ: // 只要有一边是String类型
+		return evalStringInfixExpression(operator, left, right)
 	case right.Type() != left.Type(): // 左右两边类型不相等
 		return newError("type mismatch: %s %s %s",
 			left.Type(), operator, right.Type())
@@ -207,6 +211,15 @@ func evalInfixExpression(operator string, left object.Object, right object.Objec
 	}
 }
 
+func evalStringInfixExpression(operator string, left object.Object, right object.Object) object.Object {
+	switch operator {
+	case "+":
+		return &object.String{Value: left.Inspect() + right.Inspect()}
+	default:
+		return newError("unknown operator: %s %s %s",
+			left.Type(), operator, right.Type())
+	}
+}
 func evalBooleanInfixExpression(operator string, left object.Object, right object.Object) object.Object {
 	leftVal := left.(*object.Boolean).Value
 	rightVal := right.(*object.Boolean).Value

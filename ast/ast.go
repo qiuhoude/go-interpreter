@@ -301,3 +301,13 @@ type Boolean struct {
 func (i *Boolean) expressionNode()      {}
 func (i *Boolean) TokenLiteral() string { return i.Token.Literal }
 func (i *Boolean) String() string       { return i.Token.Literal }
+
+// string
+type StringLiteral struct {
+	Token token.Token // token.STRING
+	Value string
+}
+
+func (s *StringLiteral) expressionNode()      {}
+func (s *StringLiteral) TokenLiteral() string { return s.Token.Literal }
+func (s *StringLiteral) String() string       { return s.Token.Literal }
