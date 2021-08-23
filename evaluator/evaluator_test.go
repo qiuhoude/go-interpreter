@@ -339,6 +339,116 @@ func TestStringLiteral(t *testing.T) {
 	})
 }
 
+func TestArray(t *testing.T) {
+	Convey("TestArrayLiterals", t, func() {
+		input := "[1, 2 * 2, 3 + 3]"
+		array := testEval(input)
+		So(array, shouldIsArrayObject, 3)
+		arrObj := array.(*object.Array)
+		So(arrObj.Elements[0], shouldIsIntegerObject, int64(1))
+		So(arrObj.Elements[1], shouldIsIntegerObject, int64(4))
+		So(arrObj.Elements[2], shouldIsIntegerObject, int64(6))
+	})
+
+	Convey("TestArrayIndexExpressions", t, func() {
+		cases := []struct {
+			input    string
+			expected interface{}
+		}{
+			{"[1, 2, 3][0]", 1},
+			{"[1, 2, 3][1]", 2},
+			{"[1, 2, 3][2]", 3},
+			{"let i = 0; [1][i];", 1},
+			{"[1, 2, 3][1 + 1];", 3},
+			{"let myArray = [1, 2, 3]; myArray[2];", 3},
+			{
+				"let myArray = [1, 2, 3]; myArray[0] + myArray[1] + myArray[2];",
+				6,
+			},
+			{"let myArray = [1, 2, 3]; let i = myArray[0]; myArray[i]", 2},
+			{"[1, 2, 3][3]", nil},
+			{"[1, 2, 3][-1]", nil},
+		}
+		for _, tt := range cases {
+			actual := testEval(tt.input)
+			switch expected := tt.expected.(type) {
+			case int:
+				So(actual, shouldIsIntegerObject, int64(expected))
+			case nil:
+				So(actual, shouldIsNullObject)
+			}
+		}
+	})
+}
+
+func TestScript(t *testing.T) {
+
+	Convey("TestScript", t, func() {
+		cases := []struct {
+			script          string
+			inspectExpected interface{}
+		}{
+			{
+				`
+let map = fn(arr, f) {
+      let iter = fn(arr, accumulated) {
+          if (len(arr) == 0) {
+              accumulated
+          } else {
+              iter(rest(arr), push(accumulated, f(first(arr))));
+          }
+      };
+      iter(arr, []);
+  };
+let a = [1, 2, 3, 4];
+let double = fn(x) { x * 2 };
+map(a, double);`,
+				`[2, 4, 6, 8]`,
+			},
+			{
+				`
+let reduce = fn(arr, initial, f) {
+	let iter = fn(arr, result) {
+		if (len(arr) == 0) {
+			result
+		} else {
+			iter(rest(arr), f(result, first(arr)));
+		}
+	};
+	iter(arr, initial);
+};
+let sum = fn(arr) {
+	reduce(arr, 0, fn(initial, el) { initial + el});
+};
+sum([1, 2, 3, 4, 5])
+`,
+				`15`,
+			},
+		}
+		for _, tt := range cases {
+			eval := testEval(tt.script)
+			So(eval.Inspect(), ShouldEqual, tt.inspectExpected)
+		}
+	})
+
+}
+
+func shouldIsArrayObject(actual interface{}, expectedList ...interface{}) string {
+	// 参数是长度
+	expectedLen := expectedList[0].(int)
+
+	result, ok := actual.(*object.Array)
+	if !ok {
+		return fmt.Sprintf("object is not Array. got=%T (%+v)",
+			actual, actual)
+	}
+	if len(result.Elements) != expectedLen {
+		return fmt.Sprintf("array has wrong num of elements. got=%d",
+			len(result.Elements))
+	}
+	return ""
+}
+
 func shouldIsStringObject(actual interface{}, expectedList ...interface{}) string {
 	expected := expectedList[0].(string)
 

@@ -19,6 +19,7 @@ const (
 	PRODUCT     // *
 	PREFIX      // -X or !X
 	CALL        // myFunction(X)
+	INDEX       // arr[1]
 )
 
 // precedence table , use in infix expression parse
@@ -35,6 +36,7 @@ var precedences = map[token.TokenType]int{
 	token.ASTERISK: PRODUCT,
 	token.LPAREN:   CALL,
 	token.ASSIGN:   ASSIGN,
+	token.LBRACKET: INDEX, // arr`[`1]
 }
 
 // 前缀 和 中缀解析函数
@@ -71,12 +73,12 @@ func New(l *lexer.Lexer) *Parser {
 	p.RegisterPrefix(token.TRUE, p.parseBoolean)
 	p.RegisterPrefix(token.FALSE, p.parseBoolean)
 	p.RegisterPrefix(token.LPAREN, p.parseGroupedExpression)
-
 	p.RegisterPrefix(token.LBRACE, p.parseBlockExpression)
-
 	p.RegisterPrefix(token.IF, p.parseIfExpression)
 	p.RegisterPrefix(token.FUNCTION, p.parseFunctionLiteral)
+	p.RegisterPrefix(token.LBRACKET, p.parseArrayLiteral)
 
+	// infix--------------------
 	p.RegisterInfix(token.EQ, p.parseInfixExpression)
 	p.RegisterInfix(token.NOT_EQ, p.parseInfixExpression)
 	p.RegisterInfix(token.GT, p.parseInfixExpression)
@@ -87,8 +89,9 @@ func New(l *lexer.Lexer) *Parser {
 	p.RegisterInfix(token.MINUS, p.parseInfixExpression)
 	p.RegisterInfix(token.SLASH, p.parseInfixExpression)
 	p.RegisterInfix(token.ASTERISK, p.parseInfixExpression)
-	p.RegisterInfix(token.LPAREN, p.parseCallExpression)   // call
-	p.RegisterInfix(token.ASSIGN, p.parseAssignExpression) // 分配表达式
+	p.RegisterInfix(token.LPAREN, p.parseCallExpression)    // call
+	p.RegisterInfix(token.ASSIGN, p.parseAssignExpression)  // 分配表达式
+	p.RegisterInfix(token.LBRACKET, p.parseIndexExpression) //index
 
 	p.nextToken()
 	p.nextToken()
@@ -213,25 +216,25 @@ func (p *Parser) parseExpression(precedence int) ast.Expression {
 	defer untrace(trace("parseExpression"))
 	// 流程就是使用递归方式构建多叉树 AST
 	// 前缀
-	prefix, ok := p.prefixParseFns[p.curToken.Type]
+	prefixFn, ok := p.prefixParseFns[p.curToken.Type]
 	if !ok {
 		p.noPrefixParseFnError(p.curToken.Type)
 		return nil
 	}
 	// 有前缀,可能是中缀的左值
-	leftExp := prefix()
+	leftExp := prefixFn()
 
 	// 中缀 key code
 	for !p.peekTokenIs(token.SEMICOLON) && precedence < p.peekPrecedence() {
 		// 下一个token 不是`;` , 并且下一个token优先级大于传入参数优先级
-		infix, ok := p.infixParseFns[p.peekToken.Type]
+		infixFn, ok := p.infixParseFns[p.peekToken.Type]
 		// 不是中缀,跳出循环
 		if !ok {
 			//return leftExp
 			break
 		}
 		p.nextToken()
-		leftExp = infix(leftExp)
+		leftExp = infixFn(leftExp)
 	}
 	return leftExp
 }
@@ -281,6 +284,22 @@ func (p *Parser) parseAssignExpression(left ast.Expression) ast.Expression {
 	precedences := p.curPrecedence()
 	p.nextToken()
 	exp.Value = p.parseExpression(precedences)
+	return exp
+}
+
+func (p *Parser) parseIndexExpression(left ast.Expression) ast.Expression {
+	defer untrace(trace("parseIndexExpression"))
+	exp := &ast.IndexExpression{
+		Token: p.curToken,
+		Left:  left,
+	}
+	p.nextToken() // 跳过 [
+	exp.Index = p.parseExpression(LOWEST)
+
+	if !p.expectPeek(token.RBRACKET) {
+		return nil
+	}
+
 	return exp
 }
 
@@ -367,6 +386,35 @@ func (p *Parser) parseFunctionLiteral() ast.Expression {
 	return exp
 }
 
+func (p *Parser) parseArrayLiteral() ast.Expression {
+	defer untrace(trace("parseArrayLiteral"))
+	exp := &ast.ArrayLiteral{Token: p.curToken}
+	exp.Elements = p.parseExpressionList(token.RBRACKET)
+	return exp
+}
+
+func (p *Parser) parseExpressionList(end token.TokenType) []ast.Expression {
+	list := []ast.Expression{} // eg:  startToken 1, 2+3, 3*4 endToken
+
+	if p.peekTokenIs(end) {
+		p.nextToken()
+		return list
+	}
+	p.nextToken() // skip startToken
+	list = append(list, p.parseExpression(LOWEST))
+
+	for p.peekTokenIs(token.COMMA) {
+		p.nextToken() // skip previous expression
+		p.nextToken() // skip ','
+		list = append(list, p.parseExpression(LOWEST))
+	}
+	if !p.expectPeek(end) {
+		return nil
+	}
+
+	return list
+}
+
 func (p *Parser) parseBlockExpression() ast.Expression {
 	defer untrace(trace("parseBlockExpression"))
 	exp := &ast.BlockExpression{Token: p.curToken}
@@ -405,10 +453,11 @@ func (p *Parser) parseFunctionParameters() []*ast.Identifier {
 func (p *Parser) parseCallExpression(function ast.Expression) ast.Expression {
 	defer untrace(trace("parseCallExpression"))
 	exp := &ast.CallExpression{Token: p.curToken, Function: function}
-	exp.Arguments = p.parseCallParameters()
+	exp.Arguments = p.parseExpressionList(token.RPAREN) // p.parseCallParameters()
 	return exp
 }
 
+/*
 func (p *Parser) parseCallParameters() []ast.Expression {
 	defer untrace(trace("parseCallParameters"))
 	args := []ast.Expression{}
@@ -431,7 +480,7 @@ func (p *Parser) parseCallParameters() []ast.Expression {
 	}
 	return args
 }
-
+*/
 func (p *Parser) curTokenIs(t token.TokenType) bool {
 	return p.curToken.Type == t
 }

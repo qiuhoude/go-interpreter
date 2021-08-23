@@ -99,6 +99,14 @@ var tokenTables = []token.Token{
 	{token.STRING, "foobar"},
 	{token.STRING, "foo bar"},
 
+	// array
+	{token.LBRACKET, "["},
+	{token.INT, "1"},
+	{token.COMMA, ","},
+	{token.INT, "2"},
+	{token.RBRACKET, "]"},
+	{token.SEMICOLON, ";"},
+
 	{token.EOF, ""},
 }
 
@@ -126,6 +134,7 @@ return false;
 
 "foobar"
 "foo bar"
+[1, 2];
 `
 
 // mock出来的Lexer
