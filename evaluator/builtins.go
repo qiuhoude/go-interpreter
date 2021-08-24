@@ -1,6 +1,9 @@
 package evaluator
 
-import "github.com/qiuhoude/go-interpreter/object"
+import (
+	"fmt"
+	"github.com/qiuhoude/go-interpreter/object"
+)
 
 var builtins = map[string]object.Object{
 	"len":   makeBuiltin(builtinLen),
@@ -8,6 +11,7 @@ var builtins = map[string]object.Object{
 	"last":  makeBuiltin(builtinLast),
 	"rest":  makeBuiltin(builtinRest),
 	"push":  makeBuiltin(builtinPush),
+	"print": makeBuiltin(builtinPint),
 }
 
 func makeBuiltin(fn object.BuiltinFunction) *object.Builtin {
@@ -88,4 +92,11 @@ func builtinPush(args ...object.Object) object.Object {
 	copy(newElements, arr.Elements)
 	newElements[length] = args[1]
 	return &object.Array{Elements: newElements}
+}
+
+func builtinPint(args ...object.Object) object.Object {
+	for _, arg := range args {
+		fmt.Println(arg.Inspect())
+	}
+	return NULL
 }
