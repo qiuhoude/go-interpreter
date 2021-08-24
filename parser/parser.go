@@ -73,10 +73,11 @@ func New(l *lexer.Lexer) *Parser {
 	p.RegisterPrefix(token.TRUE, p.parseBoolean)
 	p.RegisterPrefix(token.FALSE, p.parseBoolean)
 	p.RegisterPrefix(token.LPAREN, p.parseGroupedExpression)
-	p.RegisterPrefix(token.LBRACE, p.parseBlockExpression)
+	p.RegisterPrefix(token.LBRACE, p.parseBlockExpression) // 块语句
 	p.RegisterPrefix(token.IF, p.parseIfExpression)
 	p.RegisterPrefix(token.FUNCTION, p.parseFunctionLiteral)
 	p.RegisterPrefix(token.LBRACKET, p.parseArrayLiteral)
+	p.RegisterPrefix(token.HASH, p.parseHashLiteral) //hash表, 本来用 {, 但是 { 被语句块占用
 
 	// infix--------------------
 	p.RegisterInfix(token.EQ, p.parseInfixExpression)
@@ -383,6 +384,47 @@ func (p *Parser) parseFunctionLiteral() ast.Expression {
 	}
 
 	exp.Body = p.parseBlockStatement()
+	return exp
+}
+
+func (p *Parser) parseHashLiteral() ast.Expression {
+	defer untrace(trace("parseHashLiteral"))
+	tok := p.curToken
+	// eg hash{1, 2, 3}
+	if !p.expectPeek(token.LBRACE) { // hash 后面不是 {
+		return nil
+	}
+	exp := &ast.HashLiteral{
+		Token: tok,
+		Pairs: make(map[ast.Expression]ast.Expression),
+	}
+	if p.peekTokenIs(token.RBRACE) { // hash{ 后面是 } ,说明是空 hash
+		p.nextToken()
+		return exp
+	}
+	p.nextToken() // skip '{'
+	for {
+		key := p.parseExpression(LOWEST) // key
+		if !p.expectPeek(token.COLON) {
+			return nil
+		}
+		p.nextToken()                      // skip ':'
+		value := p.parseExpression(LOWEST) // value
+		exp.Pairs[key] = value
+
+		if p.peekTokenIs(token.RBRACE) { // '}' 说明最后一对
+			break
+		}
+		if !p.expectPeek(token.COMMA) { // 下一个不是 ',' 说明有错误
+			return nil
+		}
+		p.nextToken() // skip ','
+	}
+
+	if !p.expectPeek(token.RBRACE) { // 不是 } 结尾
+		return nil
+	}
+
 	return exp
 }
 

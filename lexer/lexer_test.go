@@ -107,6 +107,14 @@ var tokenTables = []token.Token{
 	{token.RBRACKET, "]"},
 	{token.SEMICOLON, ";"},
 
+	// hashtable
+	{token.HASH, "hash"},
+	{token.LBRACE, "{"},
+	{token.STRING, "foo"},
+	{token.COLON, ":"},
+	{token.STRING, "bar"},
+	{token.RBRACE, "}"},
+
 	{token.EOF, ""},
 }
 
@@ -135,6 +143,7 @@ return false;
 "foobar"
 "foo bar"
 [1, 2];
+hash{"foo": "bar"}
 `
 
 // mock出来的Lexer

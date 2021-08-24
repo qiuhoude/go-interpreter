@@ -234,6 +234,10 @@ return 1;
 				`"Hello" - "World"`,
 				"unknown operator: STRING - STRING",
 			},
+			{
+				`hash{"name": "Monkey"}[fn(x) { x }];`,
+				"unusable as hash key: FUNCTION",
+			},
 		}
 		for _, tt := range cases {
 			actual := testEval(tt.input)
@@ -433,6 +437,98 @@ sum([1, 2, 3, 4, 5])
 
 }
 
+func TestHashLiterals(t *testing.T) {
+	Convey("TestHashLiterals", t, func() {
+		input := `
+let two = "two";
+hash{
+	"one": 10 - 9,
+	two: 1 + 1,
+	"thr" + "ee": 6 / 2,
+	4: 4,
+	true: 5,
+	false: 6
+}`
+		evaluated := testEval(input)
+
+		So(evaluated, shouldIsHashObjectType)
+		result := evaluated.(*object.Hash)
+		expected := map[object.HashKey]int64{
+			(&object.String{Value: "one"}).HashKey():   1,
+			(&object.String{Value: "two"}).HashKey():   2,
+			(&object.String{Value: "three"}).HashKey(): 3,
+			(&object.Integer{Value: 4}).HashKey():      4,
+			TRUE.HashKey():                             5,
+			FALSE.HashKey():                            6,
+		}
+		So(len(result.Pairs), ShouldEqual, len(expected))
+
+		for expectedKey, expectedValue := range expected {
+			pair, ok := result.Pairs[expectedKey]
+			if !ok {
+				t.Errorf("no pair for given key in Pairs")
+			}
+			So(pair.Value, shouldIsIntegerObject, expectedValue)
+		}
+	})
+
+}
+
+func TestHashIndexExpressions(t *testing.T) {
+	Convey("TestHashIndexExpressions", t, func() {
+		cases := []struct {
+			input    string
+			expected interface{}
+		}{
+			{
+				`hash{"foo": 5}["foo"]`,
+				5,
+			},
+			{
+				`hash{"foo": 5}["bar"]`,
+				nil,
+			},
+			{
+				`let key = "foo"; hash{"foo": 5}[key]`,
+				5,
+			},
+			{
+				`hash{}["foo"]`,
+				nil,
+			},
+			{
+				`hash{5: 5}[5]`,
+				5,
+			},
+			{
+				`hash{true: 5}[true]`,
+				5,
+			},
+			{
+				`hash{false: 5}[false]`,
+				5,
+			},
+		}
+		for _, tt := range cases {
+			evaluated := testEval(tt.input)
+			integer, ok := tt.expected.(int)
+			if ok {
+				So(evaluated, shouldIsIntegerObject, int64(integer))
+			} else {
+				So(evaluated, shouldIsNullObject)
+			}
+		}
+	})
+}
+
+func shouldIsHashObjectType(actual interface{}, _ ...interface{}) string {
+	_, ok := actual.(*object.Hash)
+	if !ok {
+		return fmt.Sprintf("object is not Hash. got=%T (%+v)",
+			actual, actual)
+	}
+	return ""
+}
 func shouldIsArrayObject(actual interface{}, expectedList ...interface{}) string {
 	// 参数是长度
 	expectedLen := expectedList[0].(int)

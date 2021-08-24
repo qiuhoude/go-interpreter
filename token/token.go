@@ -39,6 +39,7 @@ const (
 	RBRACE    = "}"
 	LBRACKET  = "["
 	RBRACKET  = "]"
+	COLON     = ":"
 
 	// Keywords
 	FUNCTION = "FUNCTION"
@@ -48,6 +49,7 @@ const (
 	IF       = "IF"
 	ELSE     = "ELSE"
 	RETURN   = "RETURN"
+	HASH     = "HASH" // hash表
 )
 
 var keyword = map[string]TokenType{
@@ -58,6 +60,7 @@ var keyword = map[string]TokenType{
 	"if":     IF,
 	"else":   ELSE,
 	"return": RETURN,
+	"hash":   HASH,
 }
 
 func LookupIdent(ident string) TokenType {

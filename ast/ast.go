@@ -311,6 +311,27 @@ func (ie *IndexExpression) String() string {
 	return out.String()
 }
 
+// hashtable
+type HashLiteral struct {
+	Token token.Token               // the token.HASH
+	Pairs map[Expression]Expression // 因为 Expression 实现中都是指针类型,所以内部有slice也可以
+}
+
+func (hl *HashLiteral) expressionNode()      {}
+func (hl *HashLiteral) TokenLiteral() string { return hl.Token.Literal }
+func (hl *HashLiteral) String() string {
+	var out bytes.Buffer
+	var pairs []string
+	for key, value := range hl.Pairs {
+		pairs = append(pairs, key.String()+":"+value.String())
+	}
+	out.WriteString(hl.Token.Literal)
+	out.WriteString("{")
+	out.WriteString(strings.Join(pairs, ", "))
+	out.WriteString("}")
+	return out.String()
+}
+
 // ==================== 叶子节点 ==================
 // IdentifierExpression
 type Identifier struct {
